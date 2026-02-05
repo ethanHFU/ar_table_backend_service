@@ -5,17 +5,16 @@ import numpy as np
 
 
 def init_video_capture(cam_idx, width, height, fps):
-    cv.setLogLevel(2)
     if CURRENT_OS is OS.LINUX:
         vid_api = cv.CAP_V4L2
         fourcc = cv.VideoWriter_fourcc(*"MJPG")
+        # fourcc = None
     elif CURRENT_OS is OS.WINDOWS:
         vid_api = cv.CAP_MSMF
         fourcc = None
     else:
         vid_api = cv.CAP_ANY
         fourcc = None
-
 
     cap = cv.VideoCapture(cam_idx, vid_api)
     if not cap.isOpened():
@@ -29,8 +28,10 @@ def init_video_capture(cam_idx, width, height, fps):
     cap.set(cv.CAP_PROP_FPS, fps)
     cap.set(cv.CAP_PROP_AUTOFOCUS, 0)  # Disable autofocus
     cap.set(cv.CAP_PROP_FOCUS, 0)  # Focus on infinity
+    cap.set(cv.CAP_PROP_BUFFERSIZE, 20)
 
     return cap
+
 
 
 if __name__ == "__main__":
@@ -38,18 +39,27 @@ if __name__ == "__main__":
     print(cap.get(cv.CAP_PROP_FRAME_WIDTH))
     print(cap.get(cv.CAP_PROP_FRAME_HEIGHT))
     print(cap.get(cv.CAP_PROP_FPS))
+    print(cap.get(cv.CAP_PROP_BUFFERSIZE))
+    
 
-    while True:
-        ret, frame = cap.read()
-        print(frame.shape)
-        if not ret:
-            print("No camera found")
-            break
-        frame_flipped = np.flip(frame, axis=1)
-        cv.imshow("name", frame)
-        key = cv.waitKey(1) & 0xFF
-        if key == ord('q'):
-            break
+    # frame, _ = cap.read()
+    # ret, frame = cap.read()
+    cv.imshow("latest", frame)
+
+    key = cv.waitKey(0) & 0xFF
+    # if key == ord('q'):
+
+    # while True:
+    #     ret, frame = cap.read()
+    #     print(frame.shape)
+    #     if not ret:
+    #         print("No camera found")
+    #         break
+    #     frame_flipped = np.flip(frame, axis=1)
+    #     cv.imshow("name", frame)
+    #     key = cv.waitKey(1) & 0xFF
+    #     if key == ord('q'):
+    #         break
 
     cap.release()
 

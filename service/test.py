@@ -17,7 +17,3 @@ async def run():
 
 if __name__ == "__main__":
     asyncio.run(run())
-
-# print(CURRENT_OS)
-# print(os.environ.get("OPENCV_LOG_LEVEL"))
-# print(sys.path)

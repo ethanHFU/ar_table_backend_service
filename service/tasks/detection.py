@@ -1,10 +1,8 @@
-import json
-import asyncio
-import queue
-from service.server import WebSocketServer
-
+import os
+from service.utils.file_utils import load_config
 from service.vision.camera import init_video_capture
-from service.vision.detection import ArucoMarkerDetector, Marker
+from service.vision.aruco import ArucoMarkerDetector, Marker
+from service.ws.server import WebSocketServer
 
 import cv2 as cv
 import numpy as np
@@ -25,17 +23,15 @@ def markers_payload(markers):
         "markers": [marker_payload(m.id, m.center.X, m.center.Y) for m in markers]
     }
 
-def run_calibration():
-    pass
 
 def run_service(detector, cap, ws, H):
     try:
         WINDOW_NAME = "MAIN"
-        cv.namedWindow(WINDOW_NAME, cv.WINDOW_NORMAL)
-        cv.resizeWindow(WINDOW_NAME, (WIDTH, HEIGHT))
+        cv.namedWindow(WINDOW_NAME, cv.WINDOW_AUTOSIZE)
 
         while True:
             ret, frame = cap.read()
+
             if not ret:
                 print("No frame read")
                 break
@@ -63,24 +59,22 @@ def run_service(detector, cap, ws, H):
 
 
 if __name__ == "__main__":
+    CFG = load_config(r"service/config.json")
     
-    
-    # Init detector
-    DETECTOR_PARAMETERS = {
-            "perspectiveRemoveIgnoredMarginPerCell": 0.1,
-            "perspectiveRemovePixelPerCell": 4,
-            "errorCorrectionRate": 0.5
-    }
-    detector = ArucoMarkerDetector("DICT_4X4_250", DETECTOR_PARAMETERS)
+    detector = ArucoMarkerDetector(CFG["aruco_detection"]["physical_marker_dict"],
+                                   CFG["aruco_detection"]["detector_parameters"])
 
     # Init camera
-    CAM_IDX, WIDTH, HEIGHT, FPS = 0, 1920, 1080, 30
-    cap = init_video_capture(CAM_IDX, WIDTH, HEIGHT, FPS)
+    cap = init_video_capture(CFG["camera"]["index"],
+                             CFG["camera"]["width"],
+                             CFG["camera"]["height"],
+                             CFG["camera"]["fps"])
 
     # undistort_map = cv.initUndistortRectifyMap()
 
     H = np.identity(3)
-    
+    # H = np.load(os.path.join('cam_to_proj_H.npz'))
+
     # Init websocket
     ws = WebSocketServer(port=5001)
     ws.start()

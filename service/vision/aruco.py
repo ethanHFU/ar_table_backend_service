@@ -73,6 +73,12 @@ class Marker:
         assert (m1.BR.X, m1.BR.Y) == (3, 3)
         assert (m1.BL.X, m1.BL.Y) == (2, 3)
 
+        H = np.identity(3)
+
+        t_pts = cv.perspectiveTransform(corners[0], H)
+
+        print(t_pts)
+
         # --- Convert back to OpenCV format ---
         corners_cv, ids_cv = Marker.to_cv_collection(markers)
 
@@ -91,6 +97,7 @@ class Marker:
 
         assert frame is not None
 
+Marker._test_marker_class()
 
 class ArucoMarkerDetector:
     """Class for detecting ArUco markers in images using specific parameters."""

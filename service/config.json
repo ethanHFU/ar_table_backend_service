@@ -1,0 +1,26 @@
+{
+    "camera": {
+        "width": 1920,
+        "height": 1080,
+        "index": 0,
+        "fps": 30
+    },
+    "projector": {
+        "width": 3840,
+        "height": 2160,
+        "screen_position": [1920, 0]
+    },
+    "main_display": {
+        "width": 1920,
+        "height": 1080
+    },
+    "aruco_detection": {
+        "physical_marker_dict": "DICT_4X4_250",
+        "projected_marker_dict": "DICT_5X5_250",
+        "detector_parameters": {
+            "perspectiveRemoveIgnoredMarginPerCell": 0.1,
+            "perspectiveRemovePixelPerCell": 4,
+            "errorCorrectionRate": 0.5
+        }
+    }
+}
