@@ -1,24 +1,22 @@
-import os
-import sys
 from service.utils.platform_info import CURRENT_OS, OS
+import asyncio
+import websockets
 
-import socket
-import json
+SERVER_URI = "ws://localhost:5001"
 
-HOST = "127.0.0.1"   # or server IP
-PORT = 9999
+async def run():
+    print(f"Connecting to {SERVER_URI}...")
+    async with websockets.connect(SERVER_URI) as websocket:
+        print("Connected. Waiting for messages...\n")
 
-with socket.create_connection((HOST, PORT)) as sock:
-    print("Connected to server")
+        try:
+            async for message in websocket:
+                print("Received:", message)
+        except websockets.ConnectionClosed:
+            print("Connection closed")
 
-    file = sock.makefile("r")  # line-buffered text mode
-
-    try:
-        for line in file:
-            data = json.loads(line)
-            print(data)
-    except KeyboardInterrupt:
-        print("Client exiting")
+if __name__ == "__main__":
+    asyncio.run(run())
 
 # print(CURRENT_OS)
 # print(os.environ.get("OPENCV_LOG_LEVEL"))
