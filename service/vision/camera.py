@@ -28,7 +28,7 @@ def init_video_capture(cam_idx, width, height, fps):
     cap.set(cv.CAP_PROP_FPS, fps)
     cap.set(cv.CAP_PROP_AUTOFOCUS, 0)  # Disable autofocus
     cap.set(cv.CAP_PROP_FOCUS, 0)  # Focus on infinity
-    cap.set(cv.CAP_PROP_BUFFERSIZE, 20)
+    cap.set(cv.CAP_PROP_BUFFERSIZE, 1)
 
     return cap
 
@@ -44,22 +44,23 @@ if __name__ == "__main__":
 
     # frame, _ = cap.read()
     # ret, frame = cap.read()
-    cv.imshow("latest", frame)
+    # cv.imshow("latest", frame)
 
-    key = cv.waitKey(0) & 0xFF
+    # key = cv.waitKey(0) & 0xFF
     # if key == ord('q'):
+    import time
 
-    # while True:
-    #     ret, frame = cap.read()
-    #     print(frame.shape)
-    #     if not ret:
-    #         print("No camera found")
-    #         break
-    #     frame_flipped = np.flip(frame, axis=1)
-    #     cv.imshow("name", frame)
-    #     key = cv.waitKey(1) & 0xFF
-    #     if key == ord('q'):
-    #         break
-
+    while True:
+        ret, frame = cap.read()
+        print(frame.shape)
+        if not ret:
+            print("No camera found")
+            break
+        # frame_flipped = np.flip(frame, axis=1)
+        cv.imshow("name", cv.resize(frame, None, fx=0.5, fy=0.5))
+        key = cv.waitKey(1) & 0xFF
+        if key == ord('q'):
+            break
+        time.sleep(5)
     cap.release()
 

@@ -1,4 +1,5 @@
 import os
+from service.utils.transform_utils import dist_to_map
 from service.utils.file_utils import load_config
 from service.vision.camera import init_video_capture
 from service.vision.aruco import ArucoMarkerDetector, Marker
@@ -36,18 +37,25 @@ def run_service(detector, cap, ws, H):
                 print("No frame read")
                 break
 
-            # TODO: Undistortion with remap
-            markers = detector.detect(frame)
-            if markers:
+            # Undistortion
+            frame = cv.remap(
+                        frame.copy(),
+                        MAP_A,
+                        MAP_B,
+                        interpolation=cv.INTER_LINEAR
+                    )
+            corners, ids = detector.detect(frame)
+            frame = cv.aruco.drawDetectedMarkers(frame, corners, ids)
+            if corners is not None and ids is not None:
+                corners_tf = []
+                for c in corners:
+                    corners_tf.append(cv.perspectiveTransform(c, H))
 
-                for marker in markers:
-                    cv.perspectiveTransform(marker.corners_cv, H)
-                
+                markers = Marker.from_cv_collection(ids, corners_tf)
                 ws.broadcast(markers_payload(markers))
                 corners, ids = Marker.to_cv_collection(markers)
-                frame = cv.aruco.drawDetectedMarkers(frame, corners, ids)
 
-            cv.imshow(WINDOW_NAME, frame)
+            cv.imshow(WINDOW_NAME, cv.resize(frame, None, fx=0.5, fy=0.5))
             if cv.waitKey(1) & 0xFF == ord('q'):
                 break
 
@@ -60,6 +68,19 @@ def run_service(detector, cap, ws, H):
 
 if __name__ == "__main__":
     CFG = load_config(r"service/config.json")
+    # Load calibration
+    ud = np.load(os.path.join('service/calibration', 'undistortion_args.npz'))
+    camMtx = ud["camMtx"]
+    distCoeffs = ud["distCoeff"]
+    camMtxNew = ud["camMtxNew"]
+    
+    # TODO: add to camera class
+    MAP_A, MAP_B = dist_to_map(camMtx,
+                               distCoeffs,
+                               camMtxNew,
+                               CFG["camera"]["width"],
+                               CFG["camera"]["height"])  
+
     
     detector = ArucoMarkerDetector(CFG["aruco_detection"]["physical_marker_dict"],
                                    CFG["aruco_detection"]["detector_parameters"])
@@ -72,8 +93,9 @@ if __name__ == "__main__":
 
     # undistort_map = cv.initUndistortRectifyMap()
 
-    H = np.identity(3)
-    # H = np.load(os.path.join('cam_to_proj_H.npz'))
+    # H = np.identity(3)
+    CALIBRATION_DIR = 'service/calibration'
+    H = np.load(os.path.join(CALIBRATION_DIR, 'cam_to_proj_H.npy'))
 
     # Init websocket
     ws = WebSocketServer(port=5001)

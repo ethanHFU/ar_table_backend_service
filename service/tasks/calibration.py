@@ -1,5 +1,6 @@
 from service.utils.file_utils import load_config
 from service.vision.camera import init_video_capture
+from service.utils.transform_utils import dist_to_map
 from service.vision.aruco import ArucoMarkerDetector
 import cv2 as cv
 import numpy as np
@@ -16,11 +17,14 @@ def _detect_markers_with_attempts(
     """
     for attempt in range(1, MAX_NR_OF_ATTEMPTS + 1):
         frame = _get_most_recent_frame()
+        # print(type(frame))
+        # cv.imshow("test", cv.resize(frame, None, fx=0.5, fy=0.5))
+        # cv.waitKey(0)
         if frame is None or np.mean(frame) < 5:
             print("Captured image is black, skipping frame.")
             continue
 
-        corners, ids = detector.detect(frame)
+        corners, ids = detector.detect(frame, debug=True)
         if ids is not None:
             num_ids = len(ids)
             if expected_count:
@@ -70,13 +74,17 @@ def _extract_common_corners(
     # Find intersection of detected IDs
     common_ids = sorted(set(grid_ids).intersection(proj_ids))
 
-    print("No common markers detected between projected and captured images. Exiting.")
+    if not common_ids:
+        print("No common markers detected between projected and captured images. Exiting.")
+        os._exit(0)
 
     # Collect corresponding corners in the same sorted order
     common_grid_corners = np.concatenate([grid_map[id_].reshape(-1, 2) for id_ in common_ids], axis=0)
     common_proj_corners = np.concatenate([proj_map[id_].reshape(-1, 2) for id_ in common_ids], axis=0)
 
-    print(f"{len(common_ids)} common markers detected: {common_ids}")
+    if DEBUG:
+        print(f"{len(common_ids)} common markers detected: {common_ids}")
+        
     return common_grid_corners, common_proj_corners, common_ids
     
 def _setup_aruco_grid():
@@ -98,7 +106,7 @@ def _calibrate_camera_to_projector():
     Project an ArUco grid and detect it with the camera.
     Compute the camera-to-projector homography.
     """
-    aruco_grid = _setup_aruco_grid(CFG)    
+    aruco_grid = _setup_aruco_grid()    
 
     gt_grid_corners, gt_grid_ids = DETECTOR_PROJ.detect(aruco_grid)
 
@@ -165,6 +173,9 @@ def _calibrate_bounding_box(camera_to_projector_homography: np.ndarray) -> tuple
 
     outermost_corners = _get_outermost_corners(table_corners)
     dst_pts = cv.perspectiveTransform(outermost_corners, camera_to_projector_homography)
+    print(dst_pts)
+    print(dst_pts.shape)
+
     src_pts = np.asarray([[[0, 0], 
                            [CFG["projector"]["width"], 0], 
                            [CFG["projector"]["width"],CFG["projector"]["height"]],
@@ -178,35 +189,69 @@ def _get_most_recent_frame():
                              CFG["camera"]["width"],
                              CFG["camera"]["height"],
                              CFG["camera"]["fps"])
-    frame, _ = cap.read()
+    _, frame = cap.read()
     cap.release()
+    frame = cv.remap(
+                    frame.copy(),
+                    MAP_A,
+                    MAP_B,
+                    interpolation=cv.INTER_LINEAR
+                )
     return frame
 
 if __name__ == "__main__":
+    DEBUG = True
     CFG = load_config(r"service/config.json")
+
+    # Load calibration
+    ud = np.load(os.path.join('service/calibration', 'undistortion_args.npz'))
+    camMtx = ud["camMtx"]
+    distCoeffs = ud["distCoeff"]
+    camMtxNew = ud["camMtxNew"]
+    
+    # TODO: add to camera class
+    MAP_A, MAP_B = dist_to_map(camMtx,
+                               distCoeffs,
+                               camMtxNew,
+                               CFG["camera"]["width"],
+                               CFG["camera"]["height"])  
+
+    CAP = init_video_capture(CFG["camera"]["index"],
+                             CFG["camera"]["width"],
+                             CFG["camera"]["height"],
+                             CFG["camera"]["fps"])
 
     MAX_NR_OF_ATTEMPTS = 10
     WNAME = "MAIN"
     WINDOW = cv.namedWindow(WNAME, cv.WINDOW_NORMAL)
-    cv.resizeWindow(WNAME,
-                    (CFG["projector"]["width"],
-                    CFG["projector"]["height"]))
     cv.moveWindow(WNAME, 
-                  x=CFG["projector"]["screen_position"][0],
-                  y=CFG["projector"]["screen_position"][1])
+                    x=CFG["projector"]["screen_position"][0],
+                    y=CFG["projector"]["screen_position"][1])
+    cv.setWindowProperty(WNAME, cv.WND_PROP_FULLSCREEN, cv.WINDOW_FULLSCREEN)
     DETECTOR_PHYS = ArucoMarkerDetector(CFG["aruco_detection"]["physical_marker_dict"], 
                                         CFG["aruco_detection"]["detector_parameters"])
     DETECTOR_PROJ = ArucoMarkerDetector(CFG["aruco_detection"]["projected_marker_dict"],
                                         CFG["aruco_detection"]["detector_parameters"])
+    
     WHITE_IMG = np.ones((CFG["projector"]["height"], CFG["projector"]["width"], 3), np.uint8) * 255
 
     cam_to_proj_H = camera_to_projector_homography = _calibrate_camera_to_projector()
 
     bounding_box_H = _calibrate_bounding_box(cam_to_proj_H)
 
-    calibration_dir = 'calibration' 
-    os.makedirs(calibration_dir, exist_ok=True)
-    np.save(os.path.join(calibration_dir, 'cam_to_proj_H.npy'), cam_to_proj_H)
-    np.save(os.path.join(calibration_dir, 'bounding_box_H.npy'), bounding_box_H)
+    print("Calibration was successful.")
+
+    if DEBUG:
+        print("Displaying calibration bounding box in white.")
+        debug_img = cv.warpPerspective(WHITE_IMG, bounding_box_H, (CFG["projector"]["width"], CFG["projector"]["height"]))
+        cv.imshow(WNAME, debug_img)
+        cv.waitKey(0)
 
 
+
+    # calibration_dir = 'service/calibration' 
+    # os.makedirs(calibration_dir, exist_ok=True)
+    # np.save(os.path.join(calibration_dir, 'cam_to_proj_H.npy'), cam_to_proj_H)
+    # np.save(os.path.join(calibration_dir, 'bounding_box_H.npy'), bounding_box_H)
+
+    CAP.release()

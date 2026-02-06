@@ -34,8 +34,8 @@ class Marker:
     def __init__(self, id, corners):
         self.id = int(np.squeeze(id))
         self.corners_cv = corners  # Save it to save on conversion. Is this worth it?
-        self._process_corners()
-    def _process_corners(self):
+        self.process_corners()
+    def process_corners(self):
         tmp = self.corners_cv.squeeze()
         self.center = Coordinate(*tmp.mean(axis=0))
         self.TL = Coordinate(tmp[0][0], tmp[0][1])
@@ -97,7 +97,6 @@ class Marker:
 
         assert frame is not None
 
-Marker._test_marker_class()
 
 class ArucoMarkerDetector:
     """Class for detecting ArUco markers in images using specific parameters."""
@@ -123,9 +122,7 @@ class ArucoMarkerDetector:
             if ids is not None:
                 debug_img = cv.aruco.drawDetectedMarkers(debug_img, corners, ids)
             cv.imshow("Detected ArUco Markers", cv.resize(debug_img, (0, 0), fx=0.4, fy=0.4)) # TODO: adjust this to actual screen size
+            print("Displaying debug window. To continue, select the debug window and then press any key.")
             cv.waitKey(0)
-            cv.destroyAllWindows()        
-        if corners is None or ids is None:
-            return None
-        else: 
-            return Marker.from_cv_collection(ids, corners)
+            cv.destroyWindow("Detected ArUco Markers")        
+        return corners, ids
