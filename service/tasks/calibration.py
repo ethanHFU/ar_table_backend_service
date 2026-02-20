@@ -17,14 +17,11 @@ def _detect_markers_with_attempts(
     """
     for attempt in range(1, MAX_NR_OF_ATTEMPTS + 1):
         frame = _get_most_recent_frame()
-        # print(type(frame))
-        # cv.imshow("test", cv.resize(frame, None, fx=0.5, fy=0.5))
-        # cv.waitKey(0)
         if frame is None or np.mean(frame) < 5:
             print("Captured image is black, skipping frame.")
             continue
 
-        corners, ids = detector.detect(frame, debug=True)
+        corners, ids = detector.detect(frame, DEBUG)
         if ids is not None:
             num_ids = len(ids)
             if expected_count:
@@ -108,6 +105,8 @@ def _calibrate_camera_to_projector():
     """
     aruco_grid = _setup_aruco_grid()    
 
+    # To respect mirrored projector setups for IT-Trans: flip grid -> detect markers -> unflip marker-coords 
+
     gt_grid_corners, gt_grid_ids = DETECTOR_PROJ.detect(aruco_grid)
 
     cv.imshow(WNAME, aruco_grid)
@@ -173,8 +172,6 @@ def _calibrate_bounding_box(camera_to_projector_homography: np.ndarray) -> tuple
 
     outermost_corners = _get_outermost_corners(table_corners)
     dst_pts = cv.perspectiveTransform(outermost_corners, camera_to_projector_homography)
-    print(dst_pts)
-    print(dst_pts.shape)
 
     src_pts = np.asarray([[[0, 0], 
                            [CFG["projector"]["width"], 0], 
@@ -214,12 +211,7 @@ if __name__ == "__main__":
                                distCoeffs,
                                camMtxNew,
                                CFG["camera"]["width"],
-                               CFG["camera"]["height"])  
-
-    CAP = init_video_capture(CFG["camera"]["index"],
-                             CFG["camera"]["width"],
-                             CFG["camera"]["height"],
-                             CFG["camera"]["fps"])
+                               CFG["camera"]["height"])
 
     MAX_NR_OF_ATTEMPTS = 10
     WNAME = "MAIN"
@@ -235,11 +227,18 @@ if __name__ == "__main__":
     
     WHITE_IMG = np.ones((CFG["projector"]["height"], CFG["projector"]["width"], 3), np.uint8) * 255
 
-    cam_to_proj_H = camera_to_projector_homography = _calibrate_camera_to_projector()
-
+    cam_to_proj_H = _calibrate_camera_to_projector()
     bounding_box_H = _calibrate_bounding_box(cam_to_proj_H)
 
     print("Calibration was successful.")
+
+    # Save calibration
+    CALIBRATION_DIR = 'service/calibration'
+    os.makedirs(CALIBRATION_DIR, exist_ok=True)
+    np.save(os.path.join(CALIBRATION_DIR, 'cam_to_proj_H.npy'), cam_to_proj_H)
+    np.save(os.path.join(CALIBRATION_DIR, 'bounding_box_H.npy'), bounding_box_H)
+    print(f"Calibration was saved to {CALIBRATION_DIR}.")
+
 
     if DEBUG:
         print("Displaying calibration bounding box in white.")
@@ -247,11 +246,3 @@ if __name__ == "__main__":
         cv.imshow(WNAME, debug_img)
         cv.waitKey(0)
 
-
-
-    # calibration_dir = 'service/calibration' 
-    # os.makedirs(calibration_dir, exist_ok=True)
-    # np.save(os.path.join(calibration_dir, 'cam_to_proj_H.npy'), cam_to_proj_H)
-    # np.save(os.path.join(calibration_dir, 'bounding_box_H.npy'), bounding_box_H)
-
-    CAP.release()
