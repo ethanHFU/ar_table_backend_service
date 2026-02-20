@@ -53,9 +53,8 @@ def run_service(detector, cap, ws, H):
 
                 markers = Marker.from_cv_collection(ids, corners_tf)
                 ws.broadcast(markers_payload(markers))
-                corners, ids = Marker.to_cv_collection(markers)
 
-            cv.imshow(WINDOW_NAME, cv.resize(frame, None, fx=0.5, fy=0.5))
+            cv.imshow(WINDOW_NAME, cv.resize(frame, None, fx=0.3, fy=0.3))
             if cv.waitKey(1) & 0xFF == ord('q'):
                 break
 
@@ -90,8 +89,6 @@ if __name__ == "__main__":
                              CFG["camera"]["width"],
                              CFG["camera"]["height"],
                              CFG["camera"]["fps"])
-
-    # undistort_map = cv.initUndistortRectifyMap()
 
     # H = np.identity(3)
     CALIBRATION_DIR = 'service/calibration'

@@ -41,15 +41,8 @@ if __name__ == "__main__":
     print(cap.get(cv.CAP_PROP_FPS))
     print(cap.get(cv.CAP_PROP_BUFFERSIZE))
     
-
-    # frame, _ = cap.read()
-    # ret, frame = cap.read()
-    # cv.imshow("latest", frame)
-
-    # key = cv.waitKey(0) & 0xFF
-    # if key == ord('q'):
+    # For testing camera frame buffer
     import time
-
     while True:
         ret, frame = cap.read()
         print(frame.shape)
