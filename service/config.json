@@ -22,5 +22,9 @@
             "perspectiveRemovePixelPerCell": 4,
             "errorCorrectionRate": 0.5
         }
+    },
+    "flip": {
+        "horizontal": true,
+        "vertical": false
     }
 }
