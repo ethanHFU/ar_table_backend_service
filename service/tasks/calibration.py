@@ -17,8 +17,6 @@ def _detect_markers_with_attempts(
     Try capturing markers up to MAX_NR_OF_ATTEMPTS times.
     Return detected corners and ids; exit if markers cannot be detected reliably.
     """
-    
-
     for attempt in range(1, MAX_NR_OF_ATTEMPTS + 1):
         frame = _get_most_recent_frame()
         if frame is None or np.mean(frame) < 5:
