@@ -1,12 +1,14 @@
 # Vorbereitung Kalibrierung
-- Allgemeine Anleitung und Schritte siehe README. Hier werden nur Tipps und Vorschläge zum Troubleshooting ergänzt.
-- Überprüfen, dass alle Werte in config.json stimmen. physical_marker_dict sollte "DICT_4X4_250" sein und projected_marker_dict muss ein anderes Aruco Dictionary nutzen, z.B. "DICT_5X5_250". "flip horizontal" sollte _true_ sein und "flip_vertical" _false_.
-- So gut es geht Lichtquellen in der Nähe des Tisches ausschalten.
-- 4 physische Marker (selbes Dictionary wie in config) in die 4 Ecken des Tisches legen. Deren äußere Ecken werden für die Begrenzung der Projektionsfläche genutzt, d.h. sie sollten so platziert sein, dass diese Ecken mit der gewünschten Projektionsfläche übereinstimmen.
+- Für Allgemeine Anleitung und Schritte siehe README. Hier werden nur Tipps und Vorschläge zum Troubleshooting und den Aufbau spezifisch für die IT-TRANS ergänzt.
 - Kamera so ausrichten, dass sie alle Ecken des Tisches sieht. Die obere Seite des Kamerabilds sollte Richtung Beamer zeigen.
+- Überprüfen, dass alle Werte in config.json stimmen, insbesondere: physical_marker_dict sollte "DICT_4X4_250" sein und projected_marker_dict muss ein anderes Aruco Dictionary nutzen, z.B. "DICT_5X5_250". "flip horizontal" sollte _true_ sein und "flip_vertical" _false_.
+- So gut es geht Lichtquellen in der Nähe des Tisches ausschalten.
+- 4 physische Marker (selbes Dictionary wie in config) in die 4 Ecken des Tisches legen. Deren äußere Ecken werden für die Begrenzung der Projektionsfläche genutzt, d.h. sie sollten so platziert sein, dass diese Ecken mit der gewünschten Projektionsfläche übereinstimmen.  _(Die Position der Marker ist egal für IT-TRANS, aber bei der Kalibrierung werden 4 physische Marker erwartet und müssen auf der Tischfläche liegen.)_ 
 
 # Kalibrierungsvorgang
-- Grid mit Aruco Markern wird projiziert.
+Hier werden die einzelnen Schritte des Kalibrierungsvorgangs beschrieben. Falls ein Schritt nicht so abläuft, wie hier beschrieben, stehen unter "Troubleshooting" mögliche Ursachen und Lösungen für jeden Schritt.
+
+1. Grid mit Aruco Markern wird projiziert.
 
   <details>
   <summary>Troubleshooting:</summary>
@@ -20,7 +22,7 @@
 
   </details>
 
-- Nach kurzer Zeit sollte auf dem Monitor dieses Grid aus Sicht der Kamera mit erkannten Markern angezeigt werden. Dabei müssen mindestens 4 Marker erkannt werden, aber je mehr desto besser. Wenn dies der Fall ist, eine Taste drücken, um zum nächsten Schritt zu gelangen.
+2. Nach kurzer Zeit sollte auf dem Monitor dieses Grid aus Sicht der Kamera mit erkannten Markern angezeigt werden. Dabei müssen mindestens 4 Marker erkannt werden, aber je mehr desto besser. Wenn dies der Fall ist, eine Taste drücken, um zum nächsten Schritt zu gelangen.
 
   <details>
   <summary>Troubleshooting:</summary>
@@ -38,8 +40,8 @@
 
   </details>
 
-- Ein weißes Bild wird projiziert.
-- Nach kurzer Zeit sollte auf dem Monitor ein Kamerabild angezeigt werden. Dabei sollten die 4 Marker mit einer ID und Umrandung angezeigt werden. Wenn die Marker richtig erkannt wurden, eine beliebige Taste drücken, um zum nächsten Schritt zu kommen.
+3. Ein weißes Bild wird projiziert.
+4. Nach kurzer Zeit sollte auf dem Monitor ein Kamerabild angezeigt werden. Dabei sollten die 4 Marker mit einer ID und Umrandung angezeigt werden. Wenn die Marker richtig erkannt wurden, eine beliebige Taste drücken, um zum nächsten Schritt zu kommen.
 
   <details>
   <summary>Troubleshooting:</summary>
@@ -57,7 +59,7 @@
 
   </details>
 
-- Eine kleinere weiße Fläche wird projiziert. Deren Ecken sollten exakt mit den äußeren Ecken der 4 physischen Marker übereinstimmen. Wenn dies der Fall ist, beliebige Taste drücken, um die Kalibrierung zu speichern und zu beenden.
+5. Eine kleinere weiße Fläche wird projiziert. Deren Ecken sollten ziemlich genau mit den äußeren Ecken der 4 physischen Marker übereinstimmen. Wenn dies der Fall ist, beliebige Taste drücken, um die Kalibrierung zu speichern und zu beenden. Die Kalibrierung war erfolgreich.
 
   <details>
   <summary>Troubleshooting:</summary>
