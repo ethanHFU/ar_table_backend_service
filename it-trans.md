@@ -1,13 +1,9 @@
-# To Dos
-- [ ] Reflektion von Streben verhindern (stört sonst Markererkennung vor allem in den Ecken) -> Idee: nicht reflektierendes, schwarzes Tape ankleben (muss bestellt werden)
-- [ ] Kalibrierung für die vier verschiedenen Projektionsmodi des Beamers einbauen (momentan kann die Kalibrierung nur mit Front-Projection umgehen). 
-
 # Vorbereitung Kalibrierung
 - Allgemeine Anleitung und Schritte siehe README. Hier werden nur Tipps und Vorschläge zum Troubleshooting ergänzt.
-- Überprüfen, dass alle Werte in config.json stimmen. physical_marker_dict sollte "DICT_4X4_250" sein und projected_marker_dict muss eine anderes Aruco Dictionary nutzen, z.B. "DICT_5X5_250".
+- Überprüfen, dass alle Werte in config.json stimmen. physical_marker_dict sollte "DICT_4X4_250" sein und projected_marker_dict muss ein anderes Aruco Dictionary nutzen, z.B. "DICT_5X5_250". "flip horizontal" sollte _true_ sein und "flip_vertical" _false_.
 - So gut es geht Lichtquellen in der Nähe des Tisches ausschalten.
 - 4 physische Marker (selbes Dictionary wie in config) in die 4 Ecken des Tisches legen. Deren äußere Ecken werden für die Begrenzung der Projektionsfläche genutzt, d.h. sie sollten so platziert sein, dass diese Ecken mit der gewünschten Projektionsfläche übereinstimmen.
-- Kamera so ausrichten, dass sie alle Ecken des Tisches sieht.
+- Kamera so ausrichten, dass sie alle Ecken des Tisches sieht. Die obere Seite des Kamerabilds sollte Richtung Beamer zeigen.
 
 # Kalibrierungsvorgang
 - Grid mit Aruco Markern wird projiziert.
@@ -35,10 +31,10 @@
     - Keine oder falsche undistortion_args.npz. Diese müssen im Ordner ```service/calibration``` 
   - Keine oder nur sehr wenige Marker werden erkannt:
     - Sicherstellen, dass für die phyischen und projizierten Marker unterschiedliche Dictionaries verwendet werden (siehe config.json).
-    - Sicherstellen, dass die Kamera richtig ausgerichtet ist (so dass alle Ecken der Tischfläche sichtbar sind).
-    - Sicherstellen, dass der Beamer auf Front-Projektion eingestellt ist (so dass angezeigte Schrift auf dem Kopf und spiegelverkehrt ist).
+    - Sicherstellen, dass die Kamera richtig ausgerichtet ist (so dass alle Ecken der Tischfläche sichtbar sind und die Oberseite des Bilds zum Beamer zeigt).
+    - Sicherstellen, dass die Ausrichtung vom Beamerbild zur Kamera in ```config.json``` richtig ist (_flip_-Parameter).
   - Wenige Marker werden falsch erkannt (nicht als Quadrate):
-    - Sicherstellen, dass der Beamer auf Front-Projektion eingestellt ist (so dass angezeigte Schrift auf dem Kopf und spiegelverkehrt ist).
+    - Sicherstellen, dass die Ausrichtung vom Beamerbild zur Kamera in ```config.json``` richtig ist (_flip_-Parameter).
 
   </details>
 
