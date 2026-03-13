@@ -111,7 +111,7 @@ def _setup_aruco_grid():
     return aruco_grid
 
 
-def _calibrate_camera_to_projector(flip_M):
+def _calibrate_camera_to_projector(flip_camera_M):
     """
     @public
     Project an ArUco grid and detect it with the camera.
@@ -122,13 +122,14 @@ def _calibrate_camera_to_projector(flip_M):
     
     cv.imshow(WNAME, aruco_grid)
     cv.waitKey(1)
-    proj_grid_corners, proj_grid_ids = _detect_markers_with_attempts(DETECTOR_PROJ, flip_M=flip_M)
+    time.sleep(1)
+    proj_grid_corners, proj_grid_ids = _detect_markers_with_attempts(DETECTOR_PROJ, flip_M=flip_camera_M)
     # Suppose corners from aruco:
     # corners: list of arrays of shape (1, 4, 2)
     # flipped_corners = []
     proj_grid_corners = list(proj_grid_corners)
     for idx, marker in enumerate(proj_grid_corners):
-        pts_flipped = cv.perspectiveTransform(marker, flip_M)
+        pts_flipped = cv.perspectiveTransform(marker, flip_camera_M)
         proj_grid_corners[idx] = pts_flipped
     proj_grid_corners = tuple(proj_grid_corners)
 
@@ -288,13 +289,18 @@ if __name__ == "__main__":
     # front, rear, rear_upsidedown, front_upsidedown
     # To respect mirrored projector setups for IT-Trans: flip grid -> detect markers -> unflip marker-coords 
     # Build flip homography
-    flip_M = _build_flip_matrix(CFG["camera"]["width"], 
+    flip_camera_M = _build_flip_matrix(CFG["camera"]["width"], 
                                 CFG["camera"]["height"], 
                                 flip_h=CFG["flip"]["horizontal"], 
                                 flip_v=CFG["flip"]["vertical"])
 
-    cam_to_proj_H = _calibrate_camera_to_projector(flip_M)
-    bounding_box_H = _calibrate_bounding_box(cam_to_proj_H, flip_M)
+    flip_projector_M = _build_flip_matrix(CFG["projector"]["width"], 
+                                CFG["projector"]["height"], 
+                                flip_h=CFG["flip"]["horizontal"], 
+                                flip_v=CFG["flip"]["vertical"])
+
+    cam_to_proj_H = _calibrate_camera_to_projector(flip_camera_M)
+    bounding_box_H = _calibrate_bounding_box(cam_to_proj_H, flip_projector_M)
 
     print("Calibration was successful.")
 
