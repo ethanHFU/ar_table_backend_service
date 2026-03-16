@@ -10,8 +10,7 @@ import os
 
 def _detect_markers_with_attempts(
         detector: ArucoMarkerDetector,
-        expected_count: int = None,
-        flip_M = None) -> tuple:
+        expected_count: int = None) -> tuple:
     """
     @public
     Try capturing markers up to MAX_NR_OF_ATTEMPTS times.
@@ -24,14 +23,6 @@ def _detect_markers_with_attempts(
             print("Captured image is black, skipping frame.")
             continue
         
-        if flip_M is not None:
-            if CFG["flip"]["horizontal"] or CFG["flip"]["vertical"]:
-                frame = cv.warpPerspective(
-                    frame,
-                    flip_M,
-                    (CFG["camera"]["width"], CFG["camera"]["height"])
-                )
-
         corners, ids = detector.detect(frame, DEBUG)
         if ids is not None:
             num_ids = len(ids)
@@ -54,10 +45,10 @@ def _detect_markers_with_attempts(
 
 
 def _extract_common_corners(
-    grid_corners: np.ndarray,
-    grid_ids: np.ndarray,
-    proj_grid_corners: np.ndarray,
-    proj_grid_ids: np.ndarray,
+    corners_a: np.ndarray,
+    ids_a: np.ndarray,
+    corners_b: np.ndarray,
+    ids_b: np.ndarray,
 ) -> tuple:
     """
     From detected corners and ids in both images, extract only the corners corresponding 
@@ -68,20 +59,20 @@ def _extract_common_corners(
         common_proj_corners: np.ndarray of shape (N*4, 2)
         common_ids: list of int
     """
-    if grid_ids is None or proj_grid_ids is None:
+    if ids_a is None or ids_b is None:
         print("No markers detected in one of the images. Exiting.")
         os._exit(0)
 
     # Flatten and ensure integer type
-    grid_ids = np.asarray(grid_ids).flatten().astype(int)
-    proj_ids = np.asarray(proj_grid_ids).flatten().astype(int)
+    ids_a = np.asarray(ids_a).flatten().astype(int)
+    proj_ids = np.asarray(ids_b).flatten().astype(int)
 
     # Build lookup dictionaries
-    grid_map = {id_: np.squeeze(c).astype(np.float32) for id_, c in zip(grid_ids, grid_corners)}
-    proj_map = {id_: np.squeeze(c).astype(np.float32) for id_, c in zip(proj_ids, proj_grid_corners)}
+    grid_map = {id_: np.squeeze(c).astype(np.float32) for id_, c in zip(ids_a, corners_a)}
+    proj_map = {id_: np.squeeze(c).astype(np.float32) for id_, c in zip(proj_ids, corners_b)}
 
     # Find intersection of detected IDs
-    common_ids = sorted(set(grid_ids).intersection(proj_ids))
+    common_ids = sorted(set(ids_a).intersection(proj_ids))
 
     if not common_ids:
         print("No common markers detected between projected and captured images. Exiting.")
@@ -111,36 +102,89 @@ def _setup_aruco_grid():
     return aruco_grid
 
 
-def _calibrate_camera_to_projector(flip_camera_M):
+def _calibrate_camera_to_projector(flip_projector_M):
     """
     @public
     Project an ArUco grid and detect it with the camera.
     Compute the camera-to-projector homography.
-    """
+    # """
     aruco_grid = _setup_aruco_grid()    
-    gt_grid_corners, gt_grid_ids = DETECTOR_PROJ.detect(aruco_grid)
+    aruco_corners_canonical, aruco_ids_canonical = DETECTOR_PROJ.detect(aruco_grid)
     
-    cv.imshow(WNAME, aruco_grid)
+    aruco_grid_flipped = cv.warpPerspective(
+                aruco_grid,
+                flip_projector_M,
+                (CFG["projector"]["width"], CFG["projector"]["height"])
+            )
+
+    cv.imshow(WNAME, aruco_grid_flipped)
     cv.waitKey(1)
     time.sleep(1)
-    proj_grid_corners, proj_grid_ids = _detect_markers_with_attempts(DETECTOR_PROJ, flip_M=flip_camera_M)
-    # Suppose corners from aruco:
+
+    aruco_corners_camera, aruco_ids_camera = _detect_markers_with_attempts(DETECTOR_PROJ)
+    
+    # Convert to projector coordinate system (potentially flipped canonical coordinate frame)
     # corners: list of arrays of shape (1, 4, 2)
-    # flipped_corners = []
-    proj_grid_corners = list(proj_grid_corners)
-    for idx, marker in enumerate(proj_grid_corners):
-        pts_flipped = cv.perspectiveTransform(marker, flip_camera_M)
-        proj_grid_corners[idx] = pts_flipped
-    proj_grid_corners = tuple(proj_grid_corners)
+    aruco_corners_projector = []
+    for marker in aruco_corners_canonical:  
+        pts_flipped = cv.perspectiveTransform(marker, flip_projector_M)
+        aruco_corners_projector.append(pts_flipped)
+    aruco_corners_projector = tuple(aruco_corners_projector)
+    aruco_ids_projector = aruco_ids_canonical  # For sake of completeness
 
-    print("corners shape before", np.array(proj_grid_corners).shape)
-
-    common_grid_corners, common_proj_corners, _ = _extract_common_corners(
-        gt_grid_corners, gt_grid_ids, proj_grid_corners, proj_grid_ids
+    common_corners_projector, common_corners_camera, _ = _extract_common_corners(
+        aruco_corners_projector, aruco_ids_projector, aruco_corners_camera, aruco_ids_camera
     )
 
-    camera_to_projector_homography, _ = cv.findHomography(np.array(common_proj_corners), np.array(common_grid_corners))
-    return camera_to_projector_homography
+    camera_to_projector_H, _ = cv.findHomography(np.array(common_corners_camera), np.array(common_corners_projector))
+    return camera_to_projector_H
+
+
+def _draw_aruco_correspondences(img_a, aruco_corners_a, img_b, aruco_corners_b):
+    # aruco_corners expects shape (n, 2), where n are corners of N markers (flattened)
+    
+    # Ensure 3-channel images
+    if len(img_a.shape) == 2:
+        img_a = cv.cvtColor(img_a, cv.COLOR_GRAY2BGR)
+    if len(img_b.shape) == 2:
+        img_b = cv.cvtColor(img_b, cv.COLOR_GRAY2BGR)
+
+    # Stack images horizontally
+    h1, w1 = img_a.shape[:2]
+    h2, w2 = img_b.shape[:2]
+    canvas_h = max(h1, h2)
+    canvas_w = w1 + w2
+    canvas = np.zeros((canvas_h, canvas_w, 3), dtype=np.uint8)
+    canvas[:h1, :w1] = img_a
+    canvas[:h2, w1:w1+w2] = img_b
+
+    # Color scheme for corners 0,1,2,3 (repeated for each marker)
+    corner_colors = [
+        (0,0,255),    # red
+        (0,255,0),    # green
+        (255,0,0),    # blue
+        (0,255,255)   # yellow
+    ]
+
+    num_corners = aruco_corners_a.shape[0]
+
+    for i in range(num_corners):
+        pt_gt = aruco_corners_a[i]
+        pt_cam = aruco_corners_b[i]
+
+        color = corner_colors[i % 4]  # repeat every 4 corners
+
+        pt1 = (int(pt_gt[0]), int(pt_gt[1]))
+        pt2 = (int(pt_cam[0] + w1), int(pt_cam[1]))  # offset camera image horizontally
+
+        # Draw circles at corners
+        cv.circle(canvas, pt1, 5, color, -1)
+        cv.circle(canvas, pt2, 5, color, -1)
+
+        # Draw connecting line
+        cv.line(canvas, pt1, pt2, color, thickness=2)
+
+    return canvas
 
 
 def _get_outermost_corners(markers: np.ndarray) -> np.ndarray:
@@ -184,7 +228,7 @@ def _get_outermost_corners(markers: np.ndarray) -> np.ndarray:
     return ordered.reshape(1, 4, 2).astype(np.float32)
 
 
-def _calibrate_bounding_box(camera_to_projector_homography: np.ndarray, flip_M) -> tuple:
+def _calibrate_bounding_box(camera_to_projector_H: np.ndarray, flip_M) -> tuple:
     """
     @public
     Detect physical ArUco markers at table corners and compute bounding box homography.
@@ -193,25 +237,25 @@ def _calibrate_bounding_box(camera_to_projector_homography: np.ndarray, flip_M) 
     cv.waitKey(1)   
     time.sleep(1) # Ensure white image is being displayed
 
-    table_corners, table_ids = _detect_markers_with_attempts(DETECTOR_PHYS, expected_count=4)
+    aruco_corners_camera, _ = _detect_markers_with_attempts(DETECTOR_PHYS, expected_count=4)
 
-    outermost_corners = _get_outermost_corners(table_corners)
-    dst_pts = cv.perspectiveTransform(outermost_corners, camera_to_projector_homography)
+    outermost_corners_camera = _get_outermost_corners(aruco_corners_camera)
+    dst_pts_projector = cv.perspectiveTransform(outermost_corners_camera, camera_to_projector_H)
 
-    # Height and width minus 1, as the cam_to_proj_H was also computed in pixel coordinates 
+    # Height and width minus 1, as the camera_to_projector_H was also computed in pixel coordinates 
     w = CFG["projector"]["width"]
     h = CFG["projector"]["height"]
-    src_pts_projector = np.asarray([[
+    src_pts_canonical = np.asarray([[
         [0,0],
         [w-1,0],
         [w-1,h-1],
         [0,h-1]
     ]], np.float32)
 
-    src_pts_flipped = cv.perspectiveTransform(src_pts_projector, flip_M)
+    src_pts_projector = cv.perspectiveTransform(src_pts_canonical, flip_M)
 
-    bounding_box_homography, _ = cv.findHomography(src_pts_flipped, dst_pts)
-    return bounding_box_homography
+    bounding_box_H, _ = cv.findHomography(src_pts_projector, dst_pts_projector)
+    return bounding_box_H
 
 
 def _build_flip_matrix(width, height, flip_h: bool, flip_v: bool):
@@ -283,31 +327,24 @@ if __name__ == "__main__":
                                         CFG["aruco_detection"]["detector_parameters"])
     
     WHITE_IMG = np.ones((CFG["projector"]["height"], CFG["projector"]["width"], 3), np.uint8) * 255
-    # text_test_img = r"C:\Users\ExploraVision\Src\ar_table_backend_service\text_img_test.png"
-    # TEST_IMG = cv.resize(cv.imread(text_test_img), (CFG["projector"]["width"], CFG["projector"]["height"]))
 
     # front, rear, rear_upsidedown, front_upsidedown
     # To respect mirrored projector setups for IT-Trans: flip grid -> detect markers -> unflip marker-coords 
     # Build flip homography
-    flip_camera_M = _build_flip_matrix(CFG["camera"]["width"], 
-                                CFG["camera"]["height"], 
-                                flip_h=CFG["flip"]["horizontal"], 
-                                flip_v=CFG["flip"]["vertical"])
-
     flip_projector_M = _build_flip_matrix(CFG["projector"]["width"], 
                                 CFG["projector"]["height"], 
                                 flip_h=CFG["flip"]["horizontal"], 
                                 flip_v=CFG["flip"]["vertical"])
 
-    cam_to_proj_H = _calibrate_camera_to_projector(flip_camera_M)
-    bounding_box_H = _calibrate_bounding_box(cam_to_proj_H, flip_projector_M)
+    camera_to_projector_H = _calibrate_camera_to_projector(flip_projector_M)
+    bounding_box_H = _calibrate_bounding_box(camera_to_projector_H, flip_projector_M)
 
     print("Calibration was successful.")
 
     # Save calibration
     CALIBRATION_DIR = 'service/calibration'
     os.makedirs(CALIBRATION_DIR, exist_ok=True)
-    np.save(os.path.join(CALIBRATION_DIR, 'cam_to_proj_H.npy'), cam_to_proj_H)
+    np.save(os.path.join(CALIBRATION_DIR, 'cam_to_proj_H.npy'), camera_to_projector_H)
     np.save(os.path.join(CALIBRATION_DIR, 'bounding_box_H.npy'), bounding_box_H)
     print(f"Calibration was saved to {CALIBRATION_DIR}.")
 
