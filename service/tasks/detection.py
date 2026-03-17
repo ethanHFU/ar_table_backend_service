@@ -21,7 +21,7 @@ def marker_payload(marker_id, x, y):
 
 def markers_payload(markers):
     return {
-        "markers": [marker_payload(m.id, m.TL.X, m.TL.Y) for m in markers]
+        "markers": [marker_payload(m.id, m.center.X, m.center.Y) for m in markers]
     }
 
 
@@ -93,14 +93,13 @@ if __name__ == "__main__":
                              CFG["camera"]["height"],
                              CFG["camera"]["fps"])
 
-    # H = np.identity(3)
     CALIBRATION_DIR = 'service/calibration'
     BOUNDING_BOX_H = np.load(os.path.join(CALIBRATION_DIR, 'bounding_box_H.npy'))
     CAM_TO_PROJ_H = np.load(os.path.join(CALIBRATION_DIR, 'cam_to_proj_H.npy'))
 
     # This homopgrahpy assumes that any image displayed on the projector has been transformed
     # using the bounding box homography.
-    H = np.linalg.inv(BOUNDING_BOX_H) @ CAM_TO_PROJ_H
+    H = CAM_TO_PROJ_H
 
     # Init websocket
     ws = WebSocketServer(port=5001)

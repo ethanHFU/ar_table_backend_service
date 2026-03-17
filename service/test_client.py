@@ -48,7 +48,6 @@ if __name__ == "__main__":
                   x=CFG["projector"]["screen_position"][0],
                   y=CFG["projector"]["screen_position"][1])
     cv.setWindowProperty(WNAME, cv.WND_PROP_FULLSCREEN, cv.WINDOW_FULLSCREEN)
-    test_img_warped = cv.warpPerspective(test_img, bounding_box_H, (CFG["projector"]["width"], CFG["projector"]["height"]))
-    cv.imshow(WNAME, test_img_warped)
+    cv.imshow(WNAME, test_img)
     cv.waitKey(1)
     asyncio.run(run(test_img))
