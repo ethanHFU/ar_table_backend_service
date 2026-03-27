@@ -47,16 +47,16 @@ def run_service(detector, cap, ws, H, preprocess=False):
             
             detection_frame = preprocess_img(frame) if preprocess else frame
 
+            markers = []  # always send payload 
             corners, ids = detector.detect(detection_frame)
             if corners is not None and ids is not None:
                 corners_tf = [cv.perspectiveTransform(c, H) for c in corners]
-
                 markers = Marker.from_cv_collection(ids, corners_tf)
-                ws.broadcast(markers_payload(markers))
-                
                 frame = cv.aruco.drawDetectedMarkers(frame, corners, ids)
 
             cv.imshow(WINDOW_NAME, cv.resize(frame, None, fx=0.3, fy=0.3))
+
+            ws.broadcast(markers_payload(markers))
 
             if cv.waitKey(1) & 0xFF == ord('q'):
                 break
